@@ -34,12 +34,7 @@
             <BonusPivotTable :pivotData="bonusStore.pivotBonusData" :dpcNames="bonusStore.dpcNames" />
           <!-- Total Row -->
     <!-- Total Row -->
-    <div class="total-row">
-      <strong>Total:</strong>
-      <div v-for="(total, dpc) in totalPerDpc" :key="dpc">
-        {{ dpc }}: {{ total }}
-      </div>
-    </div>
+    
   </div>
       
        
@@ -143,15 +138,7 @@ const tableRows = computed(() => {
 
 // Compute total per DPC
 // Watch for changes in pivotBonusData and update totals
-watchEffect(() => {
-  if (bonusStore.pivotBonusData && Object.keys(bonusStore.pivotBonusData).length > 0) {
-    const totals = {};
-    Object.entries(bonusStore.pivotBonusData).forEach(([dpc, data]) => {
-      totals[dpc] = data.reduce((sum, item) => sum + (item.value || 0), 0); // Adjust field name if needed
-    });
-    totalPerDpc.value = totals;
-  }
-});
+
 
 
 const fetchData = async () => {

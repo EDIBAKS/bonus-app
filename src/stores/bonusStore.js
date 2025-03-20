@@ -279,7 +279,7 @@ async fetchBonusAggregate(startDate, endDate) {
       this.bonusData = data // Push fetched data into bonusData
     },
   
-      async updateStatus(id) {
+      async updateStatus1(id) {
       const confirmUpdate = confirm("Mark this bonus as Paid?");
       if (!confirmUpdate) return;
 
@@ -305,6 +305,31 @@ async fetchBonusAggregate(startDate, endDate) {
         console.error("Error updating status:", error);
       }
     },
+
+    async updateStatus(id) {
+      const now = new Date();
+      const currentDateTime = now.toISOString().split("T")[0] + " " + now.toTimeString().split(" ")[0];
+    
+      const storeAuth = useStoreAuth();
+      const paidBy = storeAuth.userDetails?.username || "Unknown";
+    
+      const { error } = await supabase
+        .from("Bonus")
+        .update({ Status: "Paid", PaymentDate: currentDateTime, PaidBy: paidBy, user_id: storeAuth.userDetails.id })
+        .eq("id", id);
+    
+      if (!error) {
+        const index = this.bonuses.findIndex((b) => b.id === id);
+        if (index !== -1) {
+          this.bonuses[index].Status = "Paid";
+          this.bonuses[index].PaymentDate = currentDateTime;
+          this.bonuses[index].PaidBy = paidBy;
+        }
+      } else {
+        console.error("Error updating status:", error);
+      }
+    },
+    
 
     async bonusPivotTable2(startDate, endDate) {
       const storeAuth = useStoreAuth();

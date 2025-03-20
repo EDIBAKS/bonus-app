@@ -121,6 +121,7 @@
       <!-- Status Button -->
       <template v-slot:body-cell-status="props">
         <q-td :props="props">
+          <!--
           <q-btn
             flat
             :label="props.row.Status"
@@ -128,12 +129,22 @@
             :disable="props.row.Status === 'Paid'"
             @click="store.updateStatus(props.row.id)"
           />
+-->
+<q-btn
+      size="10px"
+      :color="props.row.Status === 'Paid' ? 'green' : 'red'"
+      :label="props.row.Status"
+      :disable="props.row.Status === 'Paid'"
+      
+      @click="confirmUpdate(props.row.id)"
+    />
          
         </q-td>
       </template>
 
     </q-table>
   </q-card-section>
+
 </q-card>
 
     <div v-if="store.bonuses.length">Hello Table</div>
@@ -148,6 +159,7 @@ import { ref, onMounted,watch,computed, onUnmounted} from "vue";
 import { useBonusStore } from "../stores/bonusStore";
 import { useCurrency } from "src/composables/useCurrency";
 import { useStoreAuth } from "src/stores/storeAuth";
+import { useQuasar } from 'quasar';
 const searchQuery = ref(''); // Search query for filtering
 const exchangeRate = 600;
 const selectedDPC=ref(null)
@@ -159,8 +171,11 @@ const DistributorIDNO = ref("");
 const loading = ref(false); // Loading state
 const { currencyType, convertCurrency } = useCurrency();  // Destructure the state and function
 const currentUser=storeAuth.userDetails.username
+const $q=useQuasar()
 const formatDate = (dateString) => {
+  
   const date = new Date(dateString);
+  
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
     day: '2-digit',
@@ -177,59 +192,19 @@ const columns = [
   { name: 'status', label: 'Status', align: 'center', field: 'Status' },
 ];
 
-const fetchBonuses2 = () => {
-  loading.value = true; // Show loader
-
-  // Step 1: Fetch all bonuses within the selected date range
-  store.fetchBonuses(startDate.value, endDate.value, null, null)
-    .then(() => {
-      // Step 2: Apply additional filters for selectedDPC, DistributorIDNO, and searchQuery
-      store.fetchBonuses(startDate.value, endDate.value, DistributorIDNO.value, selectedDPC.value, searchQuery.value);
-    })
-    .finally(() => {
-      loading.value = false; // Hide loader when fetching is done
-    });
+const confirmUpdate = (id) => {
+  $q.dialog({
+    title: 'Confirm Update',
+    message: 'Are you sure you want to update the status?',
+    cancel: true,
+    persistent: true
+  }).onOk(() => {
+    store.updateStatus(id);
+  }).onCancel(() => {
+    console.log('Update canceled');
+  });
 };
 
-
-
-const fetchBonuses1 = () => {
-  loading.value = true; // Show loader
-
-  // Fetch all bonuses within the date range first
-  store.fetchBonuses(startDate.value, endDate.value, null, null) 
-    .then(() => {
-      // After fetching all data, apply filtering based on DistributorIDNO or selectedDPC
-      store.fetchBonuses(startDate.value, endDate.value, DistributorIDNO.value, selectedDPC.value);
-    })
-    .finally(() => {
-      loading.value = false; // Hide loader when fetching is done
-    });
-};
-
-const fetchBonuses3 = () => {
-  loading.value = true; // Show loader
-
-  // Reset DistributorIDNO and selectedDPC if searchQuery is being used
-  if (searchQuery.value) {
-    DistributorIDNO.value = null;
-    selectedDPC.value = null;
-  }
-
-  // Fetch all bonuses within the date range
-  store.fetchBonuses(startDate.value, endDate.value, null, null)
-    .then(() => {
-      // Apply search filter if there's a search query
-      if (searchQuery.value) {
-        store.fetchBonuses(startDate.value, endDate.value, null, null, searchQuery.value);
-      } else {
-        store.fetchBonuses(startDate.value, endDate.value, DistributorIDNO.value, selectedDPC.value);
-      }
-    })
-    .finally(() => {
-      loading.value = false; // Hide loader when fetching is done
-    });
-};
 
 const fetchBonuses = () => {
   loading.value = true; // Show loader
