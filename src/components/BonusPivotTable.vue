@@ -1,11 +1,21 @@
 <script setup>
-import { defineProps } from "vue";
+import { defineProps,computed } from "vue";
 import { useCurrency } from "src/composables/useCurrency";
 // Initialize the composable
 const { currencyType, convertCurrency } = useCurrency();
 const props = defineProps({
   pivotData: Object,
   dpcNames: Array
+});
+// Compute total for each DPC
+const totalPerDpc = computed(() => {
+  const totals = {};
+  for (const dpc of props.dpcNames) {
+    totals[dpc] = Object.values(props.pivotData).reduce((sum, values) => {
+      return sum + (values[dpc] || 0);
+    }, 0);
+  }
+  return totals;
 });
 </script>
 
@@ -28,6 +38,13 @@ const props = defineProps({
         <td>{{ date }}</td>
         <td v-for="dpc in dpcNames" :key="dpc">
             {{ convertCurrency(values[dpc] || 0) }}
+        </td>
+      </tr>
+         <!-- Total Row -->
+         <tr class="total-row">
+        <td><strong>Total</strong></td>
+        <td v-for="dpc in dpcNames" :key="dpc">
+          <strong>{{ convertCurrency(totalPerDpc[dpc] || 0) }}</strong>
         </td>
       </tr>
     </tbody>
@@ -71,5 +88,10 @@ const props = defineProps({
 
 .styled-table tbody tr:hover td {
   background-color: #e9e9e9; /* Lighter hover effect */
+}
+.total-row {
+  font-weight: bold;
+  background-color: #f4f4f4;
+  color: #333;
 }
 </style>

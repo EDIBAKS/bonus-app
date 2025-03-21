@@ -69,7 +69,7 @@
   </q-col>
 </q-row>
 
-      <q-card class="full-width q-mt-md" flat bordered>
+      <q-card class="full-width q-mt-md" flat>
           <!-- Search input field -->
  
   <q-card-section>
@@ -147,7 +147,7 @@
 
 </q-card>
 
-    <div v-if="store.bonuses.length">Hello Table</div>
+    <div v-if="store.bonuses.length">Total:</div>
 
       <q-spinner v-if="store.loading" class="q-mt-md" color="primary" size="lg" />
     </q-card>
