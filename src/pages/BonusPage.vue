@@ -21,6 +21,7 @@
         class="distributor-option"
       >
         {{ distributor.DistributorNames }}
+        
       </li>
     </ul>
 
@@ -138,12 +139,23 @@
       </template>
 
       <!-- Bonus Type -->
+      <!--
       <template v-slot:body-cell-distributorName="props">
     <q-td :props="props">
       {{ props.row.DistributorName }}
     </q-td>
   </template>
+-->
 
+<template v-slot:body-cell-distributorName="props">
+  <q-td :props="props">
+    <div class="distributor-container">
+      <span>{{ props.row.DistributorName }}</span>
+      
+     
+    </div>
+  </q-td>
+</template>
       <!-- Bonus Value -->
       <template v-slot:body-cell-bonusValue="props">
               <q-td :props="props">
@@ -163,13 +175,24 @@
     <div v-if="props.row.Status === 'Paid'" class="text-blue text-caption q-mt-xs">
       By: {{ props.row.PaidBy }}
     </div>
+    <div v-if="loadingStatus[props.row.id]" class="loading-container">
+        <img
+          src="../assets/orange_circles.gif"
+          alt="Loading"
+          width="22"
+          height="22"
+        />
+      </div>
   </q-td>
+ 
 </template>
 
       <!-- Status Button -->
       <template v-slot:body-cell-status="props">
 <q-td :props="props">
+ 
   <div class="row items-center no-wrap">
+    
     <q-btn
       size="10px"
       :color="props.row.Status === 'Paid' ? 'green' : 'red'"
@@ -179,6 +202,16 @@
     />
     
     <!-- Show undo icon only when Status is 'Paid' and role is 'SuperAdmin' -->
+    <q-btn
+  v-if="props.row.Status === 'Paid' && storeAuth.userDetails?.role === 'SuperAdmin'"
+  @click="confirmReverseStatus(props.row.id)"
+   round 
+   color="red-5" 
+   icon="undo"
+   size="xs"
+    class="q-ml-sm"
+    />
+    <!--
     <q-icon 
       v-if="props.row.Status === 'Paid' && storeAuth.userDetails?.role === 'SuperAdmin'"
       name="undo" 
@@ -186,6 +219,7 @@
       class="q-ml-sm cursor-pointer"
       @click="confirmReverseStatus(props.row.id)"
     />
+    -->
   </div>
 </q-td>
 
@@ -223,6 +257,7 @@ const startDate = ref(null);
 const endDate = ref(null);
 const DistributorIDNO = ref("");
 const loading = ref(false); // Loading state
+const loadingStatus = ref({}); // Store loading state for each row
 const { currencyType, convertCurrency } = useCurrency();  // Destructure the state and function
 const currentUser=storeAuth.userDetails.username
 const $q=useQuasar()
@@ -249,7 +284,7 @@ const columns = [
   { name: 'status', label: 'Status', align: 'center', field: 'Status' },
 ];
 
-const confirmUpdate = (id) => {
+const confirmUpdate1 = (id) => {
   $q.dialog({
     title: 'Confirm Update',
     message: 'Are you sure you want to update the status?',
@@ -261,7 +296,27 @@ const confirmUpdate = (id) => {
     console.log('Update canceled');
   });
 };
-const confirmReverseStatus = (id) => {
+
+const confirmUpdate = (id) => {
+  $q.dialog({
+    title: 'Confirm Update',
+    message: 'Are you sure you want to update the status?',
+    cancel: true,
+    persistent: true
+  }).onOk(async () => {
+    loadingStatus.value[id] = true; // Start loading
+    try {
+      await store.updateStatus(id); // Call the update function
+    } catch (error) {
+      console.error('Update failed:', error);
+    } finally {
+      loadingStatus.value[id] = false; // Stop loading
+    }
+  }).onCancel(() => {
+    console.log('Update canceled');
+  });
+};
+const confirmReverseStatus1 = (id) => {
   $q.dialog({
     title: 'Confirm Reversal',
     message: 'Are you sure you want to revert the status to UnPaid?',
@@ -273,6 +328,28 @@ const confirmReverseStatus = (id) => {
     console.log('Reversal canceled');
   });
 };
+
+const confirmReverseStatus = (id) => {
+  $q.dialog({
+    title: 'Confirm Reversal',
+    message: 'Are you sure you want to revert the status to UnPaid?',
+    cancel: true,
+    persistent: true
+  }).onOk(async () => {
+    loadingStatus.value[id] = true; // Start loading
+    try {
+      await store.reverseStatus(id); // Call the reversal function
+    } catch (error) {
+      console.error('Reversal failed:', error);
+    } finally {
+      loadingStatus.value[id] = false; // Stop loading
+    }
+  }).onCancel(() => {
+    console.log('Reversal canceled');
+  });
+};
+
+
 
 const fetchDistributors = async (query) => {
   const { data, error } = await supabase
@@ -463,5 +540,15 @@ onUnmounted(() => {
 
 .distributor-option:hover {
   background-color: #f1f1f1;
+}
+.distributor-container {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Adds spacing between the name and the GIF */
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
 }
 </style>
