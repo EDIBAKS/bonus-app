@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia';
 import { supabase } from 'src/boot/supabase';
 import { useShowErrorMessage } from 'src/use/useShowErrorMessage';
-//import { useStoreEntries } from './storeEntries';
 import { useRouter } from 'vue-router';
-import { reactive, ref, onUnmounted } from 'vue';
+import { reactive, ref,onMounted, onUnmounted } from 'vue';
 import { useBonusStore } from './bonusStore';
+
 export const useStoreAuth = defineStore('auth', () => {
   const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes
   let inactivityTimer;
+  let isInactivityTrackingActive = false; // Prevent duplicate event listeners
 
   const userDetailsDefault = {
     id: null,
@@ -36,37 +37,75 @@ export const useStoreAuth = defineStore('auth', () => {
 
   loadUserDetailsFromStorage();
 
-  // Reset inactivity timer
-  const resetInactivityTimer = () => {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-      logoutUser(); // 🔥 Auto logout on inactivity
-    }, INACTIVITY_LIMIT);
+  // Reset inactivity timer efficiently
+  const resetInactivityTimer1 = () => {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => logoutUser(), INACTIVITY_LIMIT);
   };
 
-  // Start inactivity tracking
-  const startInactivityTimer = () => {
-    window.addEventListener('mousemove', resetInactivityTimer);
-    window.addEventListener('keydown', resetInactivityTimer);
-    window.addEventListener('touchstart', resetInactivityTimer);
+  // Reset inactivity timer efficiently
+const resetInactivityTimer = () => {
+  console.log('Activity detected, resetting timer'); // Debugging
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => {
+    console.log('User inactive, logging out'); // Debugging
+    logoutUser();
+  }, INACTIVITY_LIMIT);
+};
+
+  // Start inactivity tracking with optimized event listeners
+  const startInactivityTimer1 = () => {
+    if (isInactivityTrackingActive) return;
+    isInactivityTrackingActive = true;
+    
+    window.addEventListener('mousemove', resetInactivityTimer, { passive: true });
+    window.addEventListener('keydown', resetInactivityTimer, { passive: true });
+    window.addEventListener('touchstart', resetInactivityTimer, { passive: true });
+    
     resetInactivityTimer();
   };
 
+  // Start inactivity tracking with optimized event listeners
+const startInactivityTimer = () => {
+  console.log('Starting inactivity timer'); // Debugging
+
+  // Remove previous listeners to avoid duplicates
+  window.removeEventListener('mousemove', resetInactivityTimer);
+  window.removeEventListener('keydown', resetInactivityTimer);
+  window.removeEventListener('touchstart', resetInactivityTimer);
+  window.removeEventListener('click', resetInactivityTimer);
+  window.removeEventListener('scroll', resetInactivityTimer);
+  window.removeEventListener('wheel', resetInactivityTimer);
+
+  // Attach listeners to reset the timer on user activity
+  window.addEventListener('mousemove', resetInactivityTimer, { passive: true });
+  window.addEventListener('keydown', resetInactivityTimer, { passive: true });
+  window.addEventListener('touchstart', resetInactivityTimer, { passive: true });
+  window.addEventListener('click', resetInactivityTimer, { passive: true });
+  window.addEventListener('scroll', resetInactivityTimer, { passive: true });
+  window.addEventListener('wheel', resetInactivityTimer, { passive: true });
+
+  // Start/reset the timer
+  resetInactivityTimer();
+};
+
   const fetchUserDetails = async (userId) => {
-    const { data: userDetailsData, error } = await supabase.from('users').select('*').eq('id', userId).single();
+    //if (!userId || userDetails.id === userId) return; // Avoid redundant fetches
+    
+    const { data: userDetailsData, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
     if (error) {
       useShowErrorMessage(error.message);
       return;
     }
+    
     Object.assign(userDetails, userDetailsData);
     saveUserDetailsToStorage();
   };
-
-
-  
-
-
-  
 
   const registerUser = async ({ email, password, names, username, telephone, role, department }) => {
     let { data, error } = await supabase.auth.signUp({ email, password });
@@ -86,75 +125,24 @@ export const useStoreAuth = defineStore('auth', () => {
     }
   };
 
- 
-
   const loginUser = async ({ email, password }) => {
     let { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  
     if (error) {
       useShowErrorMessage(error.message);
       return;
     }
-  
     if (data?.user) {
       userDetails.id = data.user.id;
       userDetails.email = data.user.email;
       await fetchUserDetails(data.user.id);
       startInactivityTimer();
-  
-      // Get the accurate local time
-      const now = new Date();
-      const formattedDateTime = now.toISOString(); // Stores in UTC format
-  
-      // Update LastLogin in the database
-      await supabase
-        .from('users')
-        .update({ LastLogin: formattedDateTime })
-        .eq('id', data.user.id);
-    }
-  };
- 
-  
-
-
-
-  const logoutUser2 = async () => {
-    clearTimeout(inactivityTimer);
-  
-    if (userDetails.id) {
-      // Update LastLogout time
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ LastLogOut: new Date().toISOString() })  // Current timestamp
-        .eq('id', userDetails.id);
-  
-      if (updateError) {
-        console.error("Error updating LastLogOut:", updateError.message);
-      }
-    }
-  
-    let { error } = await supabase.auth.signOut();
-    if (error) {
-      useShowErrorMessage(error.message);
-    } else {
-      Object.assign(userDetails, userDetailsDefault);
-      localStorage.removeItem('userDetails');
+      await supabase.from('users').update({ LastLogin: new Date().toISOString() }).eq('id', data.user.id);
     }
   };
 
   const logoutUser = async () => {
     clearTimeout(inactivityTimer);
-  
-    // Get the accurate local time
-    const now = new Date();
-    const formattedDateTime = now.toISOString(); // Stores in UTC format
-  
-    // Update LastLogOut in the database
-    await supabase
-      .from('users')
-      .update({ LastLogOut: formattedDateTime })
-      .eq('id', userDetails.id);
-  
+    await supabase.from('users').update({ LastLogOut: new Date().toISOString() }).eq('id', userDetails.id);
     let { error } = await supabase.auth.signOut();
     if (error) {
       useShowErrorMessage(error.message);
@@ -163,46 +151,41 @@ export const useStoreAuth = defineStore('auth', () => {
       localStorage.removeItem('userDetails');
     }
   };
-  
-  
 
   const init = () => {
-    const router = useRouter(),
-    bonusEntries = useBonusStore();
+    const router = useRouter(), bonusEntries = useBonusStore();
     
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        if (session?.user) {
-          //initial fetch of user ID and email
-          userDetails.id = session.user.id;
-          userDetails.email = session.user.email;
-          //additional user details will be fetched here by calling an external fn
-          //then a redirect if user is valid
-          await fetchUserDetails(session.user.id);
-          router.push('/');
-          //storeEntries.loadEntries();
-          startInactivityTimer();
-        }
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && userDetails.id !== session.user.id) {
+        userDetails.id = session.user.id;
+        userDetails.email = session.user.email;
+        await fetchUserDetails(session.user.id);
+        router.push('/');
+        startInactivityTimer();
       } else if (event === 'SIGNED_OUT') {
         clearTimeout(inactivityTimer);
         router.replace('/auth');
         bonusEntries.unsubscribeFromBonuses();
         bonusEntries.clearEntries();
-        //here the user login info is dumped
         Object.assign(userDetails, userDetailsDefault);
         localStorage.removeItem('userDetails');
       }
     });
   };
 
-
-  
-  
+  onMounted(() => {
+    console.log('Component mounted, starting inactivity timer');
+    startInactivityTimer();
+  });
 
   onUnmounted(() => {
+    console.log('Component unmounted, cleaning up inactivity timer');
     window.removeEventListener('mousemove', resetInactivityTimer);
     window.removeEventListener('keydown', resetInactivityTimer);
     window.removeEventListener('touchstart', resetInactivityTimer);
+    window.removeEventListener('click', resetInactivityTimer);
+    window.removeEventListener('scroll', resetInactivityTimer);
+    window.removeEventListener('wheel', resetInactivityTimer);
     clearTimeout(inactivityTimer);
   });
 

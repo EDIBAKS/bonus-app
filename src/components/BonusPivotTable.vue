@@ -37,14 +37,14 @@ const totalPerDpc = computed(() => {
       <tr v-for="(values, date) in pivotData" :key="date" :class="{'odd-row': Object.keys(pivotData).indexOf(date) % 2 === 0}">
         <td>{{ date }}</td>
         <td v-for="dpc in dpcNames" :key="dpc">
-            {{ convertCurrency(values[dpc] || 0) }}
+            {{ convertCurrency(values[dpc] || 0).toLocaleString() }}
         </td>
       </tr>
          <!-- Total Row -->
          <tr class="total-row">
         <td><strong>Total</strong></td>
         <td v-for="dpc in dpcNames" :key="dpc">
-          <strong>{{ convertCurrency(totalPerDpc[dpc] || 0) }}</strong>
+          <strong>{{ convertCurrency(totalPerDpc[dpc] || 0).toLocaleString() }}</strong>
         </td>
       </tr>
     </tbody>

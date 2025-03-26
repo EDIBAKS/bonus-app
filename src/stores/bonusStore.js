@@ -17,7 +17,8 @@ export const useBonusStore = defineStore("bonusStore", {
    selectedDPCs:[], // Stores fetched DPCs for user's department
     aggregateBonus:[], // Stores formatted bonus data
     pivotBonusData:[],
-    selectedDPC :null // Store selected DPC
+    selectedDPC :null, // Store selected DPC
+    takenBy:null
   }),
 
   actions: {
@@ -67,7 +68,7 @@ export const useBonusStore = defineStore("bonusStore", {
       const formattedStartDate = startDate ? new Date(startDate).toISOString().split("T")[0] : firstDay;
       const formattedEndDate = endDate ? new Date(endDate).toISOString().split("T")[0] : lastDay;
     
-      console.log("Fetching bonuses for DistributorIDNO:", DistributorIDNO, "between:", formattedStartDate, "and", formattedEndDate); // Debugging log
+      //console.log("Fetching bonuses for DistributorIDNO:", DistributorIDNO, "between:", formattedStartDate, "and", formattedEndDate); // Debugging log
     
       try {
         let query = supabase
@@ -94,7 +95,7 @@ export const useBonusStore = defineStore("bonusStore", {
           return;
         }
     
-        console.log("Fetched bonuses:", bonuses); // Debugging log
+        //console.log("Fetched bonuses:", bonuses); // Debugging log
     
         if (!bonuses.length) {
           this.bonuses = []; // No bonuses found
@@ -149,116 +150,7 @@ export const useBonusStore = defineStore("bonusStore", {
       }
     },
     
-    async fetchBonuses5(startDate, endDate, DistributorIDNO, selectedDpc) {
-      this.loading = true;
-      this.bonuses = []; // Ensure bonuses are empty at the start
-      this.totalPaid = 0; // Initialize TotalPaid
-      this.totalUnPaid = 0; // Initialize TotalUnPaid
-    
-      // Get the first and last date of the current month
-      const now = new Date();
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-    
-      // Ensure startDate and endDate are formatted correctly
-      const formattedStartDate = startDate ? new Date(startDate).toISOString().split("T")[0] : firstDay;
-      const formattedEndDate = endDate ? new Date(endDate).toISOString().split("T")[0] : lastDay;
-    
-      console.log("Fetching bonuses for DistributorIDNO:", DistributorIDNO, "between:", formattedStartDate, "and", formattedEndDate); // Debugging log
-    
-      try {
-        let query = supabase
-          .from("Bonus")
-          .select("*")
-          .gte("BonusDate", formattedStartDate) // Start date filter
-          .lte("BonusDate", formattedEndDate) // End date filter
-          .order("BonusDate", { ascending: false }); // Sort by date descending
-    
-        // If DistributorIDNO is provided, filter bonuses for that distributor
-        if (DistributorIDNO) {
-          console.log("Filtering bonuses for DistributorIDNO:", DistributorIDNO); // Debugging log
-          query = query.eq("DistributorIDNO", DistributorIDNO);
-        }
-    
-        // Ensure that pagination doesn't limit data: Let's fetch more rows if necessary.
-        query = query.limit(1000); // Fetch up to 1000 records (or more if needed)
-    
-        const { data: bonuses, error: bonusError } = await query;
-    
-        if (bonusError) {
-          console.error("Error fetching bonuses:", bonusError);
-          this.loading = false;
-          return;
-        }
-    
-        console.log("Fetched bonuses:", bonuses); // Debugging log
-    
-        if (!bonuses.length) {
-          this.bonuses = []; // No bonuses found
-          this.mostRecentBonus = null;
-          this.totalPaid = 0;
-          this.totalUnPaid = 0;
-          this.loading = false;
-          return;
-        }
-    
-        // Extract unique DistributorIDNOs from bonuses
-        const distributorIDs = [...new Set(bonuses.map(bonus => bonus.DistributorIDNO))];
-    
-        // Fetch Distributor details
-        const { data: distributors, error: distributorError } = await supabase
-          .from("Distributors")
-          .select("DistributorIDNO, DistributorNames, DistributorPosition, RegisteredDPC")
-          .in("DistributorIDNO", distributorIDs);
-    
-        if (distributorError) {
-          console.error("Error fetching distributors:", distributorError);
-          this.loading = false;
-          return;
-        }
-    
-        // Create a map for fast lookup
-        const distributorMap = Object.fromEntries(distributors.map(d => [d.DistributorIDNO, d]));
-    
-        // Merge distributor details into bonuses
-        let filteredBonuses = bonuses.map(bonus => ({
-          ...bonus,
-          DistributorName: distributorMap[bonus.DistributorIDNO]?.DistributorNames || "Unknown",
-          DistributorPosition: distributorMap[bonus.DistributorIDNO]?.DistributorPosition || "Unknown",
-          RegisteredDPC: distributorMap[bonus.DistributorIDNO]?.RegisteredDPC || null,
-        }));
-    
-        // If selectedDpc is provided, filter bonuses by RegisteredDPC
-        if (selectedDpc) {
-          filteredBonuses = filteredBonuses.filter(bonus => bonus.RegisteredDPC === selectedDpc);
-        }
-    
-        // Calculate TotalPaid and TotalUnPaid dynamically
-        filteredBonuses.forEach(bonus => {
-          if (bonus.Status === "Paid") {
-            this.totalPaid += bonus.Amount; // Assuming the Amount field holds the bonus amount
-          } else if (bonus.Status === "Unpaid") {
-            this.totalUnPaid += bonus.Amount; // Assuming the Amount field holds the bonus amount
-          }
-        });
-    
-        // Order bonuses by DistributorName in ascending order (optional)
-        this.bonuses = filteredBonuses.sort((a, b) => a.DistributorName.localeCompare(b.DistributorName));
-    
-        this.mostRecentBonus = this.bonuses.length ? this.bonuses[0] : null;
-        this.loading = false;
-    
-        // ✅ Log the structured bonuses in the console
-        console.log("Final fetched bonuses:", JSON.stringify(this.bonuses, null, 2));
-        console.log("Total Paid:", this.totalPaid);
-        console.log("Total Unpaid:", this.totalUnPaid);
-    
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        this.loading = false;
-      }
-    },
-    
+
   
 
     async fetchBonusesWithDPCSummary(startDate, endDate) {
@@ -346,7 +238,7 @@ async fetchDPCs() {
     if (error) throw error;
 
     this.Dpcs = data || []; // Ensure the Dpcs array gets populated
-    console.log("Fetched DPCs:", this.Dpcs); // Debugging
+    //console.log("Fetched DPCs:", this.Dpcs); // Debugging
   } catch (err) {
     console.error("Error fetching DPCs:", err.message);
   }
@@ -433,7 +325,7 @@ async fetchBonusAggregate(startDate, endDate) {
     },
   
   
-    async updateStatus(id) {
+    async updateStatus1(id) {
       const now = new Date();
       const currentDateTime = now.toISOString().split("T")[0] + " " + now.toTimeString().split(" ")[0];
     
@@ -456,7 +348,105 @@ async fetchBonusAggregate(startDate, endDate) {
         console.error("Error updating status:", error);
       }
     },
-    async reverseStatus(id) {
+
+    async updateStatus2(id) {
+      const now = new Date();
+      const currentDateTime = now.toISOString().split("T")[0] + " " + now.toTimeString().split(" ")[0];
+      
+      const storeAuth = useStoreAuth();
+      const paidBy = storeAuth.userDetails?.username || "Unknown";
+    
+      // Find the index and store the previous state for rollback
+      const index = this.bonuses.findIndex((b) => b.id === id);
+      if (index !== -1) {
+        const previousBonus = { ...this.bonuses[index] }; // Save previous state for rollback
+    
+        // Immediate local update
+        this.bonuses[index].Status = "Paid";
+        this.bonuses[index].PaymentDate = currentDateTime;
+        this.bonuses[index].PaidBy = paidBy;
+        localStorage.setItem('bonuses', JSON.stringify(this.bonuses));
+    
+        // Attempt update in Supabase (in background)
+        const { error } = await supabase
+          .from("Bonus")
+          .update({ Status: "Paid", PaymentDate: currentDateTime, PaidBy: paidBy, user_id: storeAuth.userDetails.id })
+          .eq("id", id);
+    
+        if (error) {
+          console.error("Error updating status:", error);
+    
+          // Rollback local changes if Supabase update fails
+          this.bonuses[index] = previousBonus;
+          localStorage.setItem('bonuses', JSON.stringify(this.bonuses)); // Restore previous state in localStorage
+        }
+      }
+    },
+    async updateStatus(id) {
+      const now = new Date();
+      const currentDateTime = now.toISOString().split("T")[0] + " " + now.toTimeString().split(" ")[0];
+    
+      const storeAuth = useStoreAuth();
+      const paidBy = storeAuth.userDetails?.username || "Unknown";
+    
+      // ✅ Ensure TakenBy is never null or empty
+       const takenBy = this.takenBy && this.takenBy.trim() ? this.takenBy.trim() : "N/A";
+    
+      // Find the index and store the previous state for rollback
+      const index = this.bonuses.findIndex((b) => b.id === id);
+      if (index !== -1) {
+        const previousBonus = { ...this.bonuses[index] }; // Save previous state for rollback
+    
+        // Immediate local update
+        this.bonuses[index].Status = "Paid";
+        this.bonuses[index].PaymentDate = currentDateTime;
+        this.bonuses[index].PaidBy = paidBy;
+        this.bonuses[index].PickedBy = takenBy; // ✅ Use `this.takenBy`
+        localStorage.setItem("bonuses", JSON.stringify(this.bonuses));
+    
+        // Attempt update in Supabase (in background)
+        const { error } = await supabase
+          .from("Bonus")
+          .update({
+            Status: "Paid",
+            PaymentDate: currentDateTime,
+            PaidBy: paidBy,
+            PickedBy: takenBy, // ✅ Update PickedBy in Supabase
+            user_id: storeAuth.userDetails.id,
+          })
+          .eq("id", id);
+    
+        if (error) {
+          console.error("Error updating status:", error);
+    
+          // Rollback local changes if Supabase update fails
+          this.bonuses[index] = previousBonus;
+          localStorage.setItem("bonuses", JSON.stringify(this.bonuses)); // Restore previous state in localStorage
+        }
+      }
+    },
+
+    async updateTakenBy(id, takenBy) {
+      if (!id) return;
+    
+      takenBy = takenBy?.trim() || "N/A"; // Ensure no empty values
+    
+      const { error } = await supabase
+        .from("Bonus")
+        .update({ PickedBy: takenBy }) // Only update PickedBy column
+        .eq("id", id);
+    
+      if (error) {
+        console.error("Error updating TakenBy:", error.message);
+      } else {
+        console.log("TakenBy updated successfully:", takenBy);
+      }
+    },
+    
+    
+    
+    
+    async reverseStatus1(id) {
       const storeAuth = useStoreAuth();
       const now = new Date();
       const currentDateTime = now.toISOString().split("T")[0] + " " + now.toTimeString().split(" ")[0];
@@ -476,9 +466,41 @@ async fetchBonusAggregate(startDate, endDate) {
         console.error("Error reverting status:", error);
       }
     },
+
+    async reverseStatus(id) {
+      const storeAuth = useStoreAuth();
+      const now = new Date();
+      const currentDateTime = now.toISOString().split("T")[0] + " " + now.toTimeString().split(" ")[0];
+    
+      // Find the index and store the previous state for rollback
+      const index = this.bonuses.findIndex((b) => b.id === id);
+      if (index !== -1) {
+        const previousBonus = { ...this.bonuses[index] }; // Save previous state for rollback
+    
+        // Immediate local update (optimistic update)
+        this.bonuses[index].Status = "UnPaid";
+        this.bonuses[index].PaymentDate = currentDateTime;
+        this.bonuses[index].PaidBy = "";
+        localStorage.setItem('bonuses', JSON.stringify(this.bonuses));
+    
+        // Attempt update in Supabase (in the background)
+        const { error } = await supabase
+          .from("Bonus")
+          .update({ Status: "UnPaid", PaymentDate: currentDateTime, PaidBy: "", user_id: storeAuth.userDetails.id })
+          .eq("id", id);
+    
+        if (error) {
+          console.error("Error reverting status:", error);
+    
+          // Rollback local changes if Supabase update fails
+          this.bonuses[index] = previousBonus;
+          localStorage.setItem('bonuses', JSON.stringify(this.bonuses)); // Restore previous state in localStorage
+        }
+      }
+    },
     
 
- 
+   
     async fetchBonusPivotTable(startDate, endDate) {
       const storeAuth = useStoreAuth();  // Reference to authentication store
       const department = storeAuth.userDetails?.department;
@@ -596,7 +618,7 @@ this.bonuses.value=[]
       if (this.subscription) {
         supabase.removeChannel(this.subscription);
         this.subscription = null;
-        console.log("Unsubscribed from bonus updates.");
+        //console.log("Unsubscribed from bonus updates.");
       }
     },
   },

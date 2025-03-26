@@ -52,6 +52,14 @@
   <q-col cols="4" class="q-gutter-sm">
     <q-radio v-model="currencyType" label="USD" val="USD" color="primary" />
     <q-radio v-model="currencyType" label="Local Currency" val="LC" color="primary" />
+ 
+    <q-btn flat dense round icon="print" @click="printReport" color="primary">
+        <q-tooltip>Print Report</q-tooltip>
+      </q-btn>
+      
+      <q-btn flat dense round icon="picture_as_pdf" @click="exportToPDF" color="red">
+        <q-tooltip>Export to PDF</q-tooltip>
+      </q-btn>
   </q-col>
 
   <!-- Center: Title -->
@@ -96,21 +104,32 @@
     <div class="text-bold q-mr-md">
       <div v-if="store.bonuses.length">
         <div class="row q-gutter-sm justify-center">
-    <!-- UnPaid Card -->
-    <q-card class="bg-red text-white q-pa-sm col-2 q-mb-sm rounded-borders">
-      <q-card-section class="text-center q-pa-sm">
-        <div class="text-bold text-subtitle1">UnPaid</div>
-        <div class="text-bold text-h6">{{convertCurrency( totalUnPaid) }}</div>
+            <!-- Counter Card 1 -->
+            <q-card class="bg-green-5 text-white flex flex-col items-center justify-center hover-card" style="width: 190px; cursor: pointer; border-radius: 20px">
+      <q-card-section class="text-center">
+        <div class="text-h6">Total Paid</div>
+        <div class="text-h4 q-mt-md">
+          <span :class="{'text-caption': true}">{{ currencyType === 'LC' ? 'FC' : 'USD' }}</span>
+          <span class="counter-value">{{convertCurrency( totalPaid).toLocaleString() }}</span>
+        </div>
       </q-card-section>
     </q-card>
 
-    <!-- Paid Card -->
-    <q-card class="bg-green text-white q-pa-sm col-2 q-mb-sm rounded-borders">
-      <q-card-section class="text-center q-pa-sm">
-        <div class="text-bold text-subtitle1">Paid</div>
-        <div class="text-bold text-h6">{{convertCurrency( totalPaid) }}</div>
-      </q-card-section>
-    </q-card>
+    <!-- Counter Card 2 -->
+    <q-card
+  class="bg-orange-5 text-white flex flex-col items-center justify-center hover-card"
+  style="width: 190px; cursor: pointer; border-radius: 20px"
+>
+  <q-card-section class="text-center">
+    <div class="text-h6">Total UnPaid</div>
+    <div class="text-h4 q-mt-md">
+      <span :class="{'text-caption': true}">{{ currencyType === 'LC' ? 'FC' : 'USD' }}</span>
+      <span class="counter-value">{{ convertCurrency(totalUnPaid).toLocaleString() }}</span>
+    </div>
+  </q-card-section>
+</q-card>
+          
+  
   </div>
     </div>
     </div>
@@ -138,14 +157,7 @@
         </q-td>
       </template>
 
-      <!-- Bonus Type -->
-      <!--
-      <template v-slot:body-cell-distributorName="props">
-    <q-td :props="props">
-      {{ props.row.DistributorName }}
-    </q-td>
-  </template>
--->
+    
 
 <template v-slot:body-cell-distributorName="props">
   <q-td :props="props">
@@ -161,7 +173,7 @@
               <q-td :props="props">
                 <span class="text-red-300">
                   <strong>
-                  {{ convertCurrency(props.row.BonusValue) }}
+                  {{ convertCurrency(props.row.BonusValue).toLocaleString() }}
                 </strong>
                 </span>
               </q-td>
@@ -172,8 +184,8 @@
   <q-td :props="props">
     <span v-if="props.row.Status === 'Paid'">{{ formatDate(props.row.PaymentDate) }}</span>
     <span v-else>N/A</span>
-    <div v-if="props.row.Status === 'Paid'" class="text-blue text-caption q-mt-xs">
-      By: {{ props.row.PaidBy }}
+    <div v-if="props.row.Status === 'Paid'" class="text-indigo-10 text-caption q-mt-xs">
+      PaidBy: {{ props.row.PaidBy }}
     </div>
     <div v-if="loadingStatus[props.row.id]" class="loading-container">
         <img
@@ -195,7 +207,7 @@
     
     <q-btn
       size="10px"
-      :color="props.row.Status === 'Paid' ? 'green' : 'red'"
+      :color="props.row.Status === 'Paid' ? 'green-5' : 'orange-5'"
       :label="props.row.Status"
       :disable="props.row.Status === 'Paid'"
       @click="confirmUpdate(props.row.id)"
@@ -206,22 +218,30 @@
   v-if="props.row.Status === 'Paid' && storeAuth.userDetails?.role === 'SuperAdmin'"
   @click="confirmReverseStatus(props.row.id)"
    round 
-   color="red-5" 
+   color="orange-5" 
    icon="undo"
    size="xs"
     class="q-ml-sm"
     />
-    <!--
-    <q-icon 
-      v-if="props.row.Status === 'Paid' && storeAuth.userDetails?.role === 'SuperAdmin'"
-      name="undo" 
-      size="15px" 
-      class="q-ml-sm cursor-pointer"
-      @click="confirmReverseStatus(props.row.id)"
-    />
-    -->
+   
   </div>
 </q-td>
+<td>
+  <div v-if="props.row?.Status === 'Paid'" class="text-indigo-10 text-caption q-mt-xs">
+  
+    
+    <!-- Local temporary state for each row -->
+    <q-input 
+  v-model="props.row.PickedBy"  
+  dense 
+  outlined 
+  placeholder="Taken By" 
+  class="q-ml-sm"
+  @blur="store.updateTakenBy(props.row.id, props.row.PickedBy)" 
+/>
+
+  </div>
+</td>
 
 
       </template>
@@ -245,12 +265,14 @@ import { useBonusStore } from "../stores/bonusStore";
 import { useCurrency } from "src/composables/useCurrency";
 import { useStoreAuth } from "src/stores/storeAuth";
 import { useQuasar } from 'quasar';
-
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 const searchQuery = ref(''); // Search query for filtering
 const distributors = ref([]);
 const filteredDistributors = ref([]);
 const exchangeRate = 600;
 const selectedDPC=ref(null)
+
 const store = useBonusStore();
 const storeAuth=useStoreAuth()
 const startDate = ref(null);
@@ -282,6 +304,7 @@ const columns = [
   { name: 'bonusValue', label: 'Bonus Value', align: 'left', field: 'BonusValue' },
   { name: 'paymentDate', label: 'Payment Date', align: 'left', field: 'PaymentDate' },
   { name: 'status', label: 'Status', align: 'center', field: 'Status' },
+  { name: 'TakenBy', label: 'Taken By', align: 'center',  },
 ];
 
 const confirmUpdate1 = (id) => {
@@ -375,6 +398,315 @@ const selectDistributor = (distributor) => {
   // Focus on the search input field again
   document.querySelector('.search-input').focus();
 };
+const exportToPDF1 = () => {
+  if (!Array.isArray(filteredBonuses.value)) {
+    console.warn("filteredBonuses is not an array:", filteredBonuses.value);
+    return;
+  }
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  // Report title and header
+  const dateRangeText = `From: ${startDate.value} To: ${endDate.value}`;
+  const title = `Bonus Report ${dateRangeText}`;
+  const generatedBy = `Generated by: ${storeAuth.userDetails.username}`;
+
+  doc.setFontSize(14);
+  doc.text(title, 14, 10);
+  doc.setFontSize(10);
+  doc.text(generatedBy, 14, 16);
+
+  // Table headers
+  const tableHeaders = [
+    "Bonus Date",
+    "Distributor Name",
+    "Bonus Value",
+    "Payment Date",
+    "Status",
+    "Taken By",
+  ];
+
+  // Convert filteredBonuses into table data
+  const tableData = filteredBonuses.value.map((bonus) => [
+    bonus.BonusDate,
+    bonus.DistributorName,
+    convertCurrency(bonus.BonusValue),
+    bonus.Status === "Paid" ? formatDate(bonus.PaymentDate) : "N/A",
+    bonus.Status,
+    bonus.PickedBy || "N/A",
+  ]);
+
+  // Generate table
+  autoTable(doc, {
+    head: [tableHeaders],
+    body: tableData,
+    startY: 25,
+    theme: "grid",
+    styles: { fontSize: 8 },
+    margin: { top: 30 },
+    columnStyles: { 0: { cellWidth: "auto" } },
+  });
+
+  // Save PDF
+  doc.save("bonus_report.pdf");
+};
+const exportToPDF2 = () => {
+  if (!Array.isArray(filteredBonuses.value)) {
+    console.warn("filteredBonuses is not an array:", filteredBonuses.value);
+    return;
+  }
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const currentDate = new Date().toLocaleDateString(); // Get current date
+  const dateRangeText = `From: ${startDate.value} To: ${endDate.value}`;
+  const title = `Bonus Report`;
+  const generatedBy = `Generated by: ${storeAuth.userDetails.username}`;
+  const totalPaidFormatted = convertCurrency(totalPaid).toLocaleString();
+  const totalUnPaidFormatted = convertCurrency(totalUnPaid).toLocaleString();
+
+  // **📌 HEADER STYLING**
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(title, 14, 10); // Main Title
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${currentDate}`, 160, 10); // Current Date (Right Side)
+  doc.text(dateRangeText, 14, 16);
+  doc.text(generatedBy, 14, 22);
+
+  // **📌 TOTALS (Distinct, Bold & Larger)**
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+
+  doc.text(`Total Paid: ${currencyType.value === 'LC' ? 'FC' : 'USD'} ${totalPaidFormatted}`, 14, 30);
+  doc.text(`Total Unpaid: ${currencyType.value === 'LC' ? 'FC' : 'USD'} ${totalUnPaidFormatted}`, 14, 38);
+
+  // **📌 TABLE HEADERS**
+  const tableHeaders = [
+    "Bonus Date",
+    "Distributor Name",
+    "Bonus Value",
+    "Payment Date",
+    "Status",
+    "Taken By",
+  ];
+
+  // Convert filteredBonuses into table data
+  const tableData = filteredBonuses.value.map((bonus) => [
+    bonus.BonusDate,
+    bonus.DistributorName,
+    convertCurrency(bonus.BonusValue),
+    bonus.Status === "Paid" ? formatDate(bonus.PaymentDate) : "N/A",
+    bonus.Status,
+    bonus.PickedBy || "N/A",
+  ]);
+
+  // **📌 GENERATE TABLE**
+  autoTable(doc, {
+    head: [tableHeaders],
+    body: tableData,
+    startY: 45, // Ensure it starts below totals
+    theme: "grid",
+    styles: { fontSize: 8 },
+    margin: { top: 30 },
+    columnStyles: { 0: { cellWidth: "auto" } },
+  });
+
+  // Save PDF
+  doc.save("bonus_report.pdf");
+};
+const exportToPDF3 = () => {
+  if (!Array.isArray(filteredBonuses.value)) {
+    console.warn("filteredBonuses is not an array:", filteredBonuses.value);
+    return;
+  }
+
+  // Convert totals to numbers first
+  const paidTotal = Number(totalPaid.value);
+  const unpaidTotal = Number(totalUnPaid.value);
+
+  if (isNaN(paidTotal) || isNaN(unpaidTotal)) {
+    console.error("Error: Totals contain NaN", { paidTotal, unpaidTotal });
+    return;
+  }
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const currentDate = new Date().toLocaleDateString(); // Get current date
+  const dateRangeText = `From: ${startDate.value} To: ${endDate.value}`;
+  const title = `Bonus Report`;
+  const generatedBy = `Generated by: ${storeAuth.userDetails.username}`;
+  const totalPaidFormatted = convertCurrency(paidTotal).toLocaleString();
+  const totalUnPaidFormatted = convertCurrency(unpaidTotal).toLocaleString();
+
+  // **📌 HEADER STYLING**
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(title, 14, 10); // Main Title
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${currentDate}`, 160, 10); // Current Date (Right Side)
+  doc.text(dateRangeText, 14, 16);
+  doc.text(generatedBy, 14, 22);
+
+  // **📌 TOTALS (Bold, Larger & Distinct)**
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 128, 0); // Green for Paid
+  doc.text(`Total Paid: ${currencyType.value === 'LC' ? 'FC' : 'USD'} ${totalPaidFormatted}`, 14, 30);
+
+  doc.setTextColor(255, 165, 0); // Orange for Unpaid
+  doc.text(`Total Unpaid: ${currencyType.value === 'LC' ? 'FC' : 'USD'} ${totalUnPaidFormatted}`, 14, 38);
+
+  // Reset text color for table
+  doc.setTextColor(0, 0, 0);
+
+  // **📌 TABLE HEADERS**
+  const tableHeaders = [
+    "Bonus Date",
+    "Distributor Name",
+    "Bonus Value",
+    "Payment Date",
+    "Status",
+    "Taken By",
+  ];
+
+  // Convert filteredBonuses into table data
+  const tableData = filteredBonuses.value.map((bonus) => [
+    bonus.BonusDate,
+    bonus.DistributorName,
+    convertCurrency(Number(bonus.BonusValue)), // Ensure it's a number
+    bonus.Status === "Paid" ? formatDate(bonus.PaymentDate) : "N/A",
+    bonus.Status,
+    bonus.PickedBy || "N/A",
+  ]);
+
+  // **📌 GENERATE TABLE**
+  autoTable(doc, {
+    head: [tableHeaders],
+    body: tableData,
+    startY: 45, // Ensure it starts below totals
+    theme: "grid",
+    styles: { fontSize: 8 },
+    margin: { top: 30 },
+    columnStyles: { 0: { cellWidth: "auto" } },
+  });
+
+  // Save PDF
+  doc.save("bonus_report.pdf");
+};
+const exportToPDF = () => {
+  if (!Array.isArray(filteredBonuses.value) || filteredBonuses.value.length === 0) {
+    // **📌 Show a popup message instead of exporting**
+    $q.dialog({
+      title: "No Data",
+      message: "No data selected to export.",
+      ok: "OK",
+    });
+    return;
+  }
+
+  // Convert totals to numbers first
+  const paidTotal = Number(totalPaid.value);
+  const unpaidTotal = Number(totalUnPaid.value);
+
+  if (isNaN(paidTotal) || isNaN(unpaidTotal)) {
+    console.error("Error: Totals contain NaN", { paidTotal, unpaidTotal });
+    return;
+  }
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const currentDate = new Date().toLocaleDateString(); // Get current date
+  const dateRangeText = `From: ${startDate.value} To: ${endDate.value}`;
+  const title = `Bonus Report`;
+  const generatedBy = `Generated by: ${storeAuth.userDetails.username}`;
+  const totalPaidFormatted = convertCurrency(paidTotal).toLocaleString();
+  const totalUnPaidFormatted = convertCurrency(unpaidTotal).toLocaleString();
+
+  // **📌 HEADER STYLING**
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(title, 14, 10); // Main Title
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${currentDate}`, 160, 10); // Current Date (Right Side)
+  doc.text(dateRangeText, 14, 16);
+  doc.text(generatedBy, 14, 22);
+
+  // **📌 TOTALS (Bold, Larger & Distinct)**
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 128, 0); // Green for Paid
+  doc.text(`Total Paid: ${currencyType.value === 'LC' ? 'FC' : 'USD'} ${totalPaidFormatted}`, 14, 30);
+
+  doc.setTextColor(255, 165, 0); // Orange for Unpaid
+  doc.text(`Total Unpaid: ${currencyType.value === 'LC' ? 'FC' : 'USD'} ${totalUnPaidFormatted}`, 14, 38);
+
+  // Reset text color for table
+  doc.setTextColor(0, 0, 0);
+
+  // **📌 TABLE HEADERS**
+  const tableHeaders = [
+    "Bonus Date",
+    "Distributor Name",
+    "Bonus Value",
+    "Payment Date",
+    "Status",
+    "Taken By",
+  ];
+
+  // Convert filteredBonuses into table data
+  const tableData = filteredBonuses.value.map((bonus) => [
+    bonus.BonusDate,
+    bonus.DistributorName,
+    convertCurrency(Number(bonus.BonusValue)), // Ensure it's a number
+    bonus.Status === "Paid" ? formatDate(bonus.PaymentDate) : "N/A",
+    bonus.Status,
+    bonus.PickedBy || "N/A",
+  ]);
+
+  // **📌 GENERATE TABLE**
+  autoTable(doc, {
+    head: [tableHeaders],
+    body: tableData,
+    startY: 45, // Ensure it starts below totals
+    theme: "grid",
+    styles: { fontSize: 8 },
+    margin: { top: 30 },
+    columnStyles: { 0: { cellWidth: "auto" } },
+  });
+
+  // Save PDF
+  doc.save("bonus_report.pdf");
+};
+
+// Print Report Function
+const printReport = () => {
+  window.print();
+};
+
+
 
 // Watch for changes in searchQuery and fetch matching distributors
 watchEffect(() => {
@@ -477,7 +809,7 @@ const filteredBonuses2 = computed(() => {
 const filteredBonuses = computed(() => {
   const bonuses = store.bonuses;
   if (!searchQuery.value) {
-    console.log("Filtered Bonuses:", bonuses); // Log all bonuses when no search query
+    //console.log("Filtered Bonuses:", bonuses); // Log all bonuses when no search query
     return bonuses;
   }
 
@@ -507,7 +839,7 @@ const totalUnPaid = computed(() => {
 
 onMounted(async () => {
   await store.fetchDPCs(); // Wait until DPCs are fetched
-  console.log("dpcdata", store.Dpcs); // Log after fetching
+  //console.log("dpcdata", store.Dpcs); // Log after fetching
  
   store.fetchBonuses();
   store.subscribeToBonuses(); // Subscribe to real-time updates
@@ -515,7 +847,7 @@ onMounted(async () => {
 
 // Optional: Watch for changes in dpcs and log when updated
 watch(() => store.Dpcs, (newDpcs) => {
-  console.log("Updated DPCs:", newDpcs);
+  //console.log("Updated DPCs:", newDpcs);
 });
 onUnmounted(() => {
   store.unsubscribeFromBonuses(); // Unsubscribe when leaving page
@@ -550,5 +882,28 @@ onUnmounted(() => {
 .loading-container {
   display: flex;
   align-items: center;
+}
+.counter-value {
+  animation: counterAnimation 1s ease-in-out;
+}
+
+@keyframes counterAnimation {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.hover-card {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.hover-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.2);
 }
 </style>
