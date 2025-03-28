@@ -16,7 +16,7 @@
       <span class="text-black">Dyna</span> Bonus
     </q-toolbar-title>
 
-    <div class="text-body1">
+    <div class="text-body1 ">
       <q-icon name="people" size="19px" />
       {{storeAuth.userDetails.username}}
       
@@ -52,7 +52,7 @@
       @click="storeAuth.logoutUser"
        flat 
        rounded 
-       color="white" 
+       color="orange-5" 
        label="LogOut"
        icon="power_settings_new"
         />

@@ -5,7 +5,7 @@ import { useStoreAuth } from "./storeAuth";
 export const useBonusStore = defineStore("bonusStore", {
   state: () => ({
     bonuses: [],
-  
+    departmentType: 'my-department',  // Default selection
     bonusData: [],
     mostRecentBonus: null,
     searchQuery:null,
@@ -220,7 +220,7 @@ export const useBonusStore = defineStore("bonusStore", {
 
  // **Fetch DPCs for the current user's department**
 
-async fetchDPCs() {
+async fetchDPCs1() {
   const storeAuth = useStoreAuth();
   const userDepartment = storeAuth.userDetails?.department;
 
@@ -243,6 +243,40 @@ async fetchDPCs() {
     console.error("Error fetching DPCs:", err.message);
   }
 },
+
+  // Action to fetch DPCs based on departmentType
+  async fetchDPCs() {
+    const storeAuth = useStoreAuth();
+    const userDepartment = storeAuth.userDetails?.department;
+  
+    if (!userDepartment && this.departmentType === 'my-department') {
+      console.error("Department not found in authStore!");
+      return;
+    }
+  
+    try {
+      let query = supabase.from("dpc").select("dpccode, dpcname");
+  
+      // If departmentType is 'my-department', filter by userDepartment
+      if (this.departmentType === 'my-department') {
+        query = query.eq("department", userDepartment);
+      }
+  
+      // If departmentType is 'all-dpcs', fetch all DPCs (no department filter)
+      
+      const { data, error } = await query;
+  
+      if (error) throw error;
+  
+      this.Dpcs = data || [];  // Populate Dpcs array
+      if (this.Dpcs.length > 0) {
+        this.selectedDPC = this.Dpcs[0].dpccode; // Auto-select first DPC
+      }
+    } catch (err) {
+      console.error("Error fetching DPCs:", err.message);
+    }
+  },
+  
 
 async fetchBonusAggregate(startDate, endDate) {
   const storeAuth = useStoreAuth()
@@ -291,6 +325,7 @@ async fetchBonusAggregate(startDate, endDate) {
     console.error('Unexpected error:', error);
   }
 },
+//here is where i fetch shop summaries
     async fetchBonusSummary(startDate, endDate) {
       //const supabase = useSupabaseClient()
       const storeAuth = useStoreAuth()
@@ -319,10 +354,35 @@ async fetchBonusAggregate(startDate, endDate) {
         return
       }
 
-      //console.log("Fetched bonus summary:", data) // Debugging log
+      console.log("Fetched bonus summary:", data) // Debugging log
 
       this.bonusData = data // Push fetched data into bonusData
     },
+
+    async summarizeAll(startDate, endDate) {
+      // Debugging log
+      console.log("Fetching all DPCs bonus summary...");
+    
+      this.loading = true; // Start loading state
+    
+      const { data, error } = await supabase
+        .rpc('get_all_bonus_summary', { 
+          start_date: startDate, 
+          end_date: endDate 
+        });
+    
+      this.loading = false; // Stop loading
+    
+      if (error) {
+        console.error('Error fetching all DPCs bonus summary:', error);
+        return;
+      }
+    
+      console.log("Fetched all DPCs bonus summary:", data); // Debugging log
+    
+      this.bonusData = data; // Push fetched data into bonusData
+    },
+    
   
   
     async updateStatus1(id) {
@@ -622,5 +682,5 @@ this.bonuses.value=[]
       }
     },
   },
-
+ 
 });
