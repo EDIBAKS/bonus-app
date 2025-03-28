@@ -140,7 +140,7 @@ const startInactivityTimer = () => {
     }
   };
 
-  const logoutUser = async () => {
+  const logoutUser1 = async () => {
     clearTimeout(inactivityTimer);
     await supabase.from('users').update({ LastLogOut: new Date().toISOString() }).eq('id', userDetails.id);
     let { error } = await supabase.auth.signOut();
@@ -151,6 +151,23 @@ const startInactivityTimer = () => {
       localStorage.removeItem('userDetails');
     }
   };
+
+  const logoutUser = async () => {
+    clearTimeout(inactivityTimer);
+    
+    if (userDetails.id) {
+      await supabase.from('users').update({ LastLogOut: new Date().toISOString() }).eq('id', userDetails.id);
+    }
+  
+    const { error } = await supabase.auth.signOut();
+    if (error && error.message !== "Auth session missing") {
+      useShowErrorMessage(error.message);
+    } else {
+      Object.assign(userDetails, userDetailsDefault);
+      localStorage.removeItem('userDetails');
+    }
+  };
+  
 
   const init = () => {
     const router = useRouter(), bonusEntries = useBonusStore();
