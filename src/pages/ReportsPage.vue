@@ -113,7 +113,7 @@ import { useStoreAuth } from 'src/stores/storeAuth';
 import { format, eachDayOfInterval, parseISO } from 'date-fns';
 import BonusPivotTable from 'src/components/BonusPivotTable.vue';
 import { useCurrency } from 'src/composables/useCurrency';
-import DepartmentTypeSelector from 'src/components/departmentTypeSelector.vue';
+import DepartmentTypeSelector from '../components/DepartmentTypeSelector.vue';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
