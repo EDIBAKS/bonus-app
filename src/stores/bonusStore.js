@@ -14,6 +14,8 @@ export const useBonusStore = defineStore("bonusStore", {
     dpcNames: [], // Holds column names
     Dpcs:[],
     distributors: [],
+    dpcDistributors: [],    // Stores distributors by selectedDPC
+    selectedDistributor: [], // This will store the clicked distributor
    selectedDPCs:[], // Stores fetched DPCs for user's department
     aggregateBonus:[], // Stores formatted bonus data
     pivotBonusData:[],
@@ -23,7 +25,7 @@ export const useBonusStore = defineStore("bonusStore", {
 
   actions: {
   
-    async fetchDistributors() {
+    async fetchDistributors1() {
       this.loading = true;
       
       try {
@@ -52,6 +54,148 @@ export const useBonusStore = defineStore("bonusStore", {
         this.loading = false;
       }
     },
+
+     // Fetch distributors by name in real-time
+     async fetchDistributors(searchQuery) {
+      this.loading = true;
+      try {
+        let query = supabase
+          .from("Distributors")
+          .select("DistributorIDNO, DistributorNames, DistributorPosition,DistributorTelephone1, RegisteredDPC")
+          .order("DistributorNames", { ascending: true });
+
+        if (searchQuery) {
+          query = query.ilike("DistributorNames", `%${searchQuery}%`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("Error fetching distributors:", error);
+          return;
+        }
+
+        this.distributors = data || [];
+      } catch (error) {
+        console.error("Unexpected error fetching distributors:", error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+  // Fetch all distributors based on selected DPC
+  async fetchAllDistributors2() {
+    this.loading = true;
+
+    try {
+      let query = supabase
+        .from("Distributors")
+        .select("DistributorIDNO, DistributorNames, DistributorPosition, RegisteredDPC")
+        .order("DistributorNames", { ascending: true });
+
+      if (this.selectedDPC) {
+        query = query.eq("RegisteredDPC", this.selectedDPC);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching distributors by DPC:", error);
+        return;
+      }
+
+      this.dpcDistributors = data || [];
+    } catch (error) {
+      console.error("Unexpected error fetching distributors by DPC:", error);
+    } finally {
+      this.loading = false;
+    }
+  },
+ // Fetch all distributors based on selected DPC
+ async fetchAllDistributors1(query = '') {
+  this.loading = true;
+
+  try {
+    let queryBuilder = supabase
+      .from("Distributors")
+      .select("DistributorIDNO, DistributorNames, DistributorPosition, RegisteredDPC")
+      .order("DistributorNames", { ascending: true });
+
+    // If a DPC is selected, filter by DPC
+    if (this.selectedDPC) {
+      queryBuilder = queryBuilder.eq("RegisteredDPC", this.selectedDPC);
+    }
+
+    // If a search query is provided, filter by Distributor Names
+    if (query) {
+      queryBuilder = queryBuilder.ilike("DistributorNames", `%${query}%`);
+    }
+
+    const { data, error } = await queryBuilder;
+
+    if (error) {
+      console.error("Error fetching distributors:", error);
+      return;
+    }
+
+    this.dpcDistributors = data || [];
+  } catch (error) {
+    console.error("Unexpected error fetching distributors:", error);
+  } finally {
+    this.loading = false;
+  }
+},
+ 
+  // Fetch all distributors based on selected DPC
+  async fetchAllDistributors() {
+    this.loading = true;
+
+    try {
+      let query = supabase
+        .from("Distributors")
+        .select("DistributorIDNO, DistributorNames, DistributorPosition,DistributorTelephone1, RegisteredDPC")
+        .order("DistributorNames", { ascending: true });
+
+      if (this.selectedDPC) {
+        query = query.eq("RegisteredDPC", this.selectedDPC);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching distributors by DPC:", error);
+        return;
+      }
+
+      this.dpcDistributors = data || [];
+    } catch (error) {
+      console.error("Unexpected error fetching distributors by DPC:", error);
+    } finally {
+      this.loading = false;
+    }
+  },
+
+  async updateDPC(distributor) {
+    try {
+      const { error } = await supabase
+        .from("Distributors")
+        .update({ RegisteredDPC: distributor.RegisteredDPC })
+        .eq("DistributorIDNO", distributor.DistributorIDNO);
+
+      if (error) throw error;
+
+      // Refresh the list after updating
+      await this.fetchAllDistributors1();
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating DPC:", error);
+      return { success: false, message: error.message };
+    }
+  },
+
+
+    
 
 
     

@@ -29,7 +29,7 @@
   const storeAuth=useStoreAuth();
   // Watch for changes in departmentType and fetch DPCs
   watch(() => bonusStore.departmentType, async (newValue) => {
-    console.log(`Department Type changed to: ${newValue}`);
+    //console.log(`Department Type changed to: ${newValue}`);
     await bonusStore.fetchDPCs();
   }, { immediate: true });
   </script>
