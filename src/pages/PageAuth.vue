@@ -1,8 +1,11 @@
 <template>
-  <q-page class="flex flex-center q-pa-sm">
+  <q-page  class="auth-page flex flex-center q-pa-sm"
+  :style="`background-image: url(${loginBg}); background-size: cover; background-position: center;`">
     <q-card
-      class="auth bg-primary text-white q-pa-lg"
+      class="auth bg-transparent text-white q-pa-lg"
       style="width: 450px;"
+      flat
+  bordered
     >
       <q-card-section>
         <ToolbarTitle />
@@ -12,7 +15,7 @@
           v-model="tab"
           no-caps
         >
-          <q-tab name="login" label="Login" />
+          <q-tab class="text-primary" name="login" label="Login" />
           <!--
           <q-tab name="register" label="Register" />
           -->
@@ -22,24 +25,55 @@
         <q-form
           @submit="formSubmit"
         >
+        <q-input
+         outlined
+           v-model="credentials.email"
+          
+          class="q-mb-md"
+            :bg-color="useLightOrDark('transparent', 'black')"
+            label="Email"
+            :label-color="useLightOrDark('primary', 'white')"
+            type="email"
+            autocomplete="email" 
+          />
+          <!--
           <q-input
+          outlined
             v-model="credentials.email"
             class="q-mb-md"
-            :bg-color="useLightOrDark('white', 'black')"
+            :bg-color="useLightOrDark('transparent', 'black')"
             label="Email"
+            label-color="black"
             type="email"
             autocomplete="email"
             filled
           />
+          -->
+          <q-input
+           outlined
+            
+            v-model="credentials.password"
+            class="q-mb-md"
+            :bg-color="useLightOrDark('transparent', 'black')"
+            label="Password"
+            :label-color="useLightOrDark('primary', 'white')"
+            type="password"
+            autocomplete="current-password"
+            
+            />
+
+            <!--
           <q-input
             v-model="credentials.password"
             class="q-mb-md"
-            :bg-color="useLightOrDark('white', 'black')"
+            :bg-color="useLightOrDark('transparent', 'black')"
             label="Password"
+            label-color="black"
             type="password"
             autocomplete="current-password"
             filled
           />
+          -->
           <!--
           <div v-if="tab === 'register'">
 
@@ -98,10 +132,10 @@
 -->
           <q-btn
             class="full-width"
-            color="white"
+          color="primary"
             type="submit"
+            
             :label="submitButtonTitle"
-            outline
             no-caps
           />
         </q-form>
@@ -118,6 +152,7 @@ import { useQuasar } from 'quasar';
 import ToolbarTitle from 'src/components/ToolbarTitle.vue';
 import { useLightOrDark } from 'src/use/useLightOrDark';
 import { useStoreAuth } from 'src/stores/storeAuth';
+import loginBg from '../assets/finance.jpg'
 const storeAuth=useStoreAuth()
 const tab=ref('login')
 const $q=useQuasar()
@@ -154,6 +189,14 @@ storeAuth.registerUser(credentials)
   }
  
 }
-
-
 </script>
+
+<style scoped>
+.auth-page {
+  background-image: url('https://your-image-url.com/image.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+</style>

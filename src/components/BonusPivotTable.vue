@@ -17,6 +17,9 @@ const totalPerDpc = computed(() => {
   }
   return totals;
 });
+const grandTotal = computed(() => {
+  return Object.values(totalPerDpc.value).reduce((sum, val) => sum + val, 0);
+});
 </script>
 
 <template>
@@ -47,6 +50,13 @@ const totalPerDpc = computed(() => {
           <strong>{{ convertCurrency(totalPerDpc[dpc] || 0).toLocaleString() }}</strong>
         </td>
       </tr>
+      <tr class="total-row">
+  <td colspan="100%">
+    <div class="text-right q-pa-sm grand-total-text">
+      Grand Total: <strong>{{ convertCurrency(grandTotal).toLocaleString() }}</strong>
+    </div>
+  </td>
+</tr>
     </tbody>
   </table>
 </template>
@@ -93,5 +103,10 @@ const totalPerDpc = computed(() => {
   font-weight: bold;
   background-color: #f4f4f4;
   color: #333;
+}
+.grand-total-text {
+  color: #1976D2; /* Quasar primary blue */
+  font-size: 1.25rem; /* adjust as needed */
+ 
 }
 </style>

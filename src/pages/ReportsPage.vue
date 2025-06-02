@@ -45,6 +45,8 @@
             <BonusPivotTable :pivotData="bonusStore.pivotBonusData" :dpcNames="bonusStore.dpcNames"/>
           <!-- Total Row -->
     <!-- Total Row -->
+       <!-- Grand Total -->
+    
     
   </div>
       <div v-else>
@@ -232,6 +234,12 @@ const reportOptions = [
 const $q = useQuasar();
 // ✅ Use computed property to access the data from Pinia store
 const pivotBonusData = computed(() => bonusStore.pivotBonusData);
+const grandTotal = computed(() => {
+  if (!bonusStore.pivotBonusData) return 0
+  return Object.values(bonusStore.pivotBonusData).reduce((sum, item) => {
+    return sum + (item.total || 0)
+  }, 0)
+})
 
 // Fetch user department
 const userDepartment = computed(() => storeAuth.user?.department || '');
